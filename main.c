@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #define PASSWORD_SIZE 4
+#define MAX_ROOMS 10
 
 /*************************** FUNCTION DECLRATIONS *************************/ 
 void getPassword(char * pw_arr);
@@ -17,17 +18,20 @@ bool Login_Validation(char * pw_arr , char* pw_true);
 #define CLEANING_STATE 1
 // closing state where the room is unbooked and always close
 #define CLOSING_STATE 2
+// state for adding new room
+#define NEW_ROOM_STATE 3
+
 // for door
 #define OPEN 1
 #define CLOSED 0
 
 
-struct {
+struct Door{
 	int Room_Number;
 	int Room_State;
 	char *Password;
 	int Door_State;
-} Door;
+} ;
 
 int main()
 {  	
@@ -35,38 +39,62 @@ int main()
 	LCD_Init();
 	Init_UART();
 
-	struct Door;
-	Door.Room_Number = 4;
-	Door.Room_State = CLOSING_STATE;
-	Door.Password = "";
+	// all rooms
+	struct Door doors[MAX_ROOMS];
 	
-	char* roomString  = UART_Read_String();
+	// initial room
+	struct Door door;
+	door.Room_Number = 0;
+	door.Room_State = CLOSING_STATE;
+	door.Password = "";
+	
+	// current room is the first room in the array of rooms
+	doors[0] = door;	
+	int i = 0; // i is current door
+	
 	char* stateString = UART_Read_String();
-
 	int state = atoi(stateString);
+	
+	
+	// Add new Room
+	if(state == NEW_ROOM_STATE )
+	{
+		char* roomString  = UART_Read_String();
+		int room = atoi(roomString);
+		
+		struct Door newDoor;
+		newDoor.Room_Number = room;
+		newDoor.Password = "";
+		newDoor.Room_State = CLOSING_STATE;
+
+		i++;
+		doors[i] = newDoor;
+	}
+
+	char* roomString  = UART_Read_String();
 	int room = atoi(roomString);
 
 	// set password state
 	if(state == PASSWORD_STATE)
 	{
-			if (Door.Room_Number == room)
+			if (doors[i].Room_Number == room)
 			{
 				// set the new password that get sent by UART from the PC
 				char *newPassword = UART_Read_String();
-				Door.Password = newPassword;
+				doors[i].Password = newPassword;
 				
 				// wait for the client to read the password by the Keybad
 				char* keybadPassword;
 				getPassword(keybadPassword);
 
 				// check the equality between the 2 passwords
-				if (Login_Validation(Door.Password,keybadPassword))
+				if (Login_Validation(doors[i].Password,keybadPassword))
 				{
-					Door.Door_State = OPEN;
+					doors[i].Door_State = OPEN;
 				}
 				else
 				{
-					Door.Door_State = CLOSED;
+					doors[i].Door_State = CLOSED;
 				}
 			}
 	}
@@ -74,18 +102,18 @@ int main()
 	// room cleaning state
 	else if (state == CLEANING_STATE)
 	{
-			if (Door.Room_Number == room)
+			if (doors[i].Room_Number == room)
 			{
-					Door.Room_State = CLEANING_STATE;
-					Door.Door_State = OPEN;
+					doors[i].Room_State = CLEANING_STATE;
+					doors[i].Door_State = OPEN;
 			}		
 	}
 	else if (state == CLOSING_STATE)
 	{
-			if (Door.Room_Number == room)
+			if (doors[i].Room_Number == room)
 			{
-					Door.Room_State = CLOSING_STATE;
-					Door.Door_State = CLOSED;				
+					doors[i].Room_State = CLOSING_STATE;
+					doors[i].Door_State = CLOSED;				
 			}
 	}
 }
